@@ -1,63 +1,11 @@
-# Data Model
-
-Prisma + SQLite locally, Postgres in production. Only the provider string changes.
-
-> Verified against `prisma validate` and `prisma migrate diff` - generates 22 tables and
-> 10 unique indexes cleanly. Copy the block below straight into `prisma/schema.prisma`.
-
-## Design decisions
-
-**1. RSVP lives on `EventInvitation`, never on `Guest`.**
-The single most important choice here. An American wedding is one or two events; an Indian
-wedding is three or more, each with a genuinely different guest list - Haldi is family only,
-Sangeet is a party, the reception is everyone. If we put `rsvpStatus` on `Guest`, adding the
-Indian celebration later becomes a painful data migration. Putting it on the join costs nothing
-today, and the American UI simply doesn't render an event switcher.
-
-**2. `Celebration` sits between `Wedding` and `Event`.**
-The two celebrations have separate dates, venues, budgets, guest lists, and possibly different
-payers. That's a real entity, not a tag.
-
-**3. Money is stored as integer cents.**
-No floats, no `Decimal` portability problems across SQLite and Postgres. Format at the edge.
-
-**4. `Household` to `Guest`.**
-Invitations and addresses belong to a household; RSVPs and meal choices belong to a person.
-Conflating them is why guest lists get messy. `rsvpCode` lives on the household, reserved for
-the public RSVP portal later.
-
-Guests also carry `age`, `gender`, and `side`. `side` is stored as an app value such as
-`aayush_groom`, `grace_bride`, or `both` so the UI can show whose guest each person is without
-needing separate bride-side and groom-side tables.
-
-**5. Coverage is first-class.**
-With an all-inclusive venue, "who owns this service" is the central question, so `CoverageItem`
-is a real table rather than a view over vendors. `PackageInclusion` records what the venue
-contract actually covers, so the matrix can show gaps automatically.
-
-**6. `Task.chain` groups reverse-planned deadlines.**
-The marriage license and attire timelines are chains of dated steps where slipping one pushes
-everything after it. `TaskDependency` models that ordering.
-
-**7. `Seat` carries a denormalized `eventId`.**
-So `@@unique([eventId, guestId])` can enforce one seat per guest per event at the database level
-rather than in application code.
-
----
-
-## Schema
-
-```prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // "postgresql" in production
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
-
-// ---------- Core ----------
 
 model Wedding {
   id           String   @id @default(cuid())
@@ -79,7 +27,7 @@ model Celebration {
   id          String    @id @default(cuid())
   weddingId   String
   wedding     Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
-  kind        String    // american | indian
+  kind        String
   name        String
   date        DateTime?
   timezone    String    @default("America/Los_Angeles")
@@ -99,7 +47,7 @@ model Event {
   id            String      @id @default(cuid())
   celebrationId String
   celebration   Celebration @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
-  kind          String      // ceremony | reception | rehearsal_dinner | sangeet | haldi
+  kind          String
   name          String
   startsAt      DateTime?
   endsAt        DateTime?
@@ -114,8 +62,6 @@ model Event {
   constraints   SeatingConstraint[]
   timelineItems TimelineItem[]
 }
-
-// ---------- Guests ----------
 
 model Household {
   id                String    @id @default(cuid())
@@ -135,7 +81,7 @@ model Household {
   rsvpCode          String    @unique
   notes             String?
 
-  guests            Guest[]
+  guests Guest[]
 }
 
 model Guest {
@@ -144,10 +90,10 @@ model Guest {
   household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   firstName      String
   lastName       String
-  side           String?   // aayush_groom | grace_bride | both
+  side           String?
   age            Int?
   gender         String?
-  ageBand        String    @default("adult") // adult | child | infant
+  ageBand        String    @default("adult")
   isPlusOne      Boolean   @default(false)
   plusOneAllowed Boolean   @default(false)
   dietary        String?
@@ -167,7 +113,7 @@ model Tag {
   label     String
   color     String?
 
-  guests    GuestTag[]
+  guests GuestTag[]
 
   @@unique([weddingId, label])
 }
@@ -187,7 +133,7 @@ model EventInvitation {
   guestId     String
   event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   guest       Guest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  rsvpStatus  String    @default("pending") // pending | attending | declined | tentative
+  rsvpStatus  String    @default("pending")
   respondedAt DateTime?
   mealChoice  String?
   notes       String?
@@ -195,15 +141,13 @@ model EventInvitation {
   @@unique([eventId, guestId])
 }
 
-// ---------- Vendors & coverage ----------
-
 model Vendor {
   id             String  @id @default(cuid())
   weddingId      String
   wedding        Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
   name           String
-  category       String  // venue | photographer | videographer | officiant | hair_makeup | attire | florist | music | transport | baker | rentals
-  status         String  @default("researching") // researching | contacted | quoted | shortlisted | booked | completed | passed
+  category       String
+  status         String  @default("researching")
   contactName    String?
   email          String?
   phone          String?
@@ -222,7 +166,6 @@ model Vendor {
   venueFor      Celebration[]
 }
 
-/// What an all-inclusive venue package actually covers.
 model PackageInclusion {
   id       String  @id @default(cuid())
   vendorId String
@@ -234,13 +177,12 @@ model PackageInclusion {
   @@unique([vendorId, service])
 }
 
-/// One row per standard wedding service. Drives the coverage matrix.
 model CoverageItem {
   id            String      @id @default(cuid())
   celebrationId String
   celebration   Celebration @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
   service       String
-  ownedBy       String      @default("tbd") // venue_package | outside_vendor | diy | not_needed | tbd
+  ownedBy       String      @default("tbd")
   vendorId      String?
   vendor        Vendor?     @relation(fields: [vendorId], references: [id])
   notes         String?
@@ -260,8 +202,6 @@ model EventVendor {
   @@unique([eventId, vendorId])
 }
 
-// ---------- Budget ----------
-
 model BudgetLine {
   id             String       @id @default(cuid())
   weddingId      String
@@ -274,24 +214,22 @@ model BudgetLine {
   actualCents    Int?
   vendorId       String?
   vendor         Vendor?      @relation(fields: [vendorId], references: [id])
-  paidBy         String?      // us | partnerA_family | partnerB_family
+  paidBy         String?
   notes          String?
 
-  payments       Payment[]
+  payments Payment[]
 }
 
 model Payment {
   id           String     @id @default(cuid())
   budgetLineId String
   budgetLine   BudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
-  label        String     // Deposit, Second installment, Final balance
+  label        String
   amountCents  Int
   dueDate      DateTime?
   paidAt       DateTime?
   method       String?
 }
-
-// ---------- Checklist ----------
 
 model Task {
   id            String       @id @default(cuid())
@@ -302,11 +240,11 @@ model Task {
   title         String
   description   String?
   category      String?
-  bucket        String?      // 12_plus_months | 9_12_months | 6_9_months | ... | day_of | after
+  bucket        String?
   dueDate       DateTime?
   assignee      String?
-  status        String       @default("pending") // pending | in_progress | done | blocked | skipped
-  chain         String?      // marriage_license | attire
+  status        String       @default("pending")
+  chain         String?
   sortOrder     Int          @default(0)
 
   dependencies TaskDependency[] @relation("Dependent")
@@ -322,20 +260,18 @@ model TaskDependency {
   @@id([taskId, dependsOnId])
 }
 
-// ---------- Seating ----------
-
 model SeatingTable {
   id       String @id @default(cuid())
   eventId  String
   event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   name     String
-  shape    String @default("round") // round | rectangle | head | sweetheart
+  shape    String @default("round")
   capacity Int    @default(8)
   x        Float  @default(0)
   y        Float  @default(0)
   rotation Float  @default(0)
 
-  seats    Seat[]
+  seats Seat[]
 }
 
 model Seat {
@@ -360,12 +296,10 @@ model SeatingConstraint {
   guestBId String
   guestA   Guest  @relation("ConstraintGuestA", fields: [guestAId], references: [id], onDelete: Cascade)
   guestB   Guest  @relation("ConstraintGuestB", fields: [guestBId], references: [id], onDelete: Cascade)
-  kind     String // together | apart
+  kind     String
 
   @@unique([eventId, guestAId, guestBId])
 }
-
-// ---------- Day-of ----------
 
 model TimelineItem {
   id              String   @id @default(cuid())
@@ -381,14 +315,12 @@ model TimelineItem {
   notes           String?
 }
 
-// ---------- People & files ----------
-
 model WeddingPartyMember {
   id         String  @id @default(cuid())
   weddingId  String
   wedding    Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
   name       String
-  role       String  // maid_of_honor | best_man | bridesmaid | groomsman | officiant | usher | flower_girl | ring_bearer | parent
+  role       String
   side       String?
   email      String?
   phone      String?
@@ -402,20 +334,7 @@ model Document {
   vendorId   String?
   vendor     Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   label      String
-  kind       String?  // contract | invoice | coi | license
+  kind       String?
   filePath   String
   uploadedAt DateTime @default(now())
 }
-```
-
-## Seed data
-
-On first run, seed:
-
-- One `Wedding` and one `Celebration` of kind `american`
-- Its `Event` rows - ceremony and reception
-- `CoverageItem` rows for every standard service, defaulting to `tbd`, with the five known
-  gaps (photography, officiant, hair & makeup, attire, seating) pre-flagged as `outside_vendor`
-- The American checklist template, with `dueDate` computed backwards from the wedding date
-- The marriage license and attire task chains
-- Default budget categories
