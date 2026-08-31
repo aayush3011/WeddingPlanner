@@ -27,8 +27,8 @@ Conflating them is why guest lists get messy. `rsvpCode` lives on the household,
 the public RSVP portal later.
 
 Guests also carry `age`, `gender`, and `side`. `side` is stored as an app value such as
-`aayush_groom`, `grace_bride`, or `both` so the UI can show whose guest each person is without
-needing separate bride-side and groom-side tables.
+`aayush`, `grace`, or `both` so the UI can show whose guest each person is without needing
+separate side-specific tables.
 
 **5. Coverage is first-class.**
 With an all-inclusive venue, "who owns this service" is the central question, so `CoverageItem`
@@ -144,7 +144,7 @@ model Guest {
   household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   firstName      String
   lastName       String
-  side           String?   // aayush_groom | grace_bride | both
+  side           String?   // aayush | grace | both
   age            Int?
   gender         String?
   ageBand        String    @default("adult") // adult | child | infant

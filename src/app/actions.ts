@@ -49,14 +49,97 @@ export async function addGuest(formData: FormData) {
       },
     });
 
+    const rsvpStatus = optionalString(formData.get("rsvpStatus")) ?? "pending";
     await tx.eventInvitation.createMany({
       data: celebration.events.map((event) => ({
         eventId: event.id,
         guestId: guest.id,
+        rsvpStatus,
+        mealChoice: optionalString(formData.get("mealChoice")),
+        respondedAt: rsvpStatus === "pending" ? null : new Date(),
       })),
     });
   });
 
+  refresh(["/", "/guests", "/seating"]);
+}
+
+export async function addFamily(formData: FormData) {
+  const { wedding, celebration } = await getAmericanCelebration();
+  const firstNames = formData.getAll("firstName");
+  const lastNames = formData.getAll("lastName");
+  const ages = formData.getAll("age");
+  const genders = formData.getAll("gender");
+  const sides = formData.getAll("side");
+  const ageBands = formData.getAll("ageBand");
+  const dietary = formData.getAll("dietary");
+  const statuses = formData.getAll("rsvpStatus");
+  const meals = formData.getAll("mealChoice");
+
+  if (firstNames.length === 0) throw new Error("Add at least one family member");
+
+  await prisma.$transaction(async (tx) => {
+    const family = await tx.household.create({
+      data: {
+        weddingId: wedding.id,
+        name: requiredString(formData.get("familyName"), "Family name"),
+        rsvpCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
+      },
+    });
+
+    for (let index = 0; index < firstNames.length; index += 1) {
+      const ageValue = optionalString(ages[index]);
+      const age = ageValue ? Number(ageValue) : null;
+      if (age !== null && (!Number.isInteger(age) || age < 0)) {
+        throw new Error("Age must be a positive whole number");
+      }
+
+      const guest = await tx.guest.create({
+        data: {
+          householdId: family.id,
+          firstName: requiredString(firstNames[index], "First name"),
+          lastName: requiredString(lastNames[index], "Last name"),
+          age,
+          gender: optionalString(genders[index]),
+          side: requiredString(sides[index], "Side"),
+          ageBand: requiredString(ageBands[index], "Guest type"),
+          dietary: optionalString(dietary[index]),
+        },
+      });
+
+      const rsvpStatus = optionalString(statuses[index]) ?? "pending";
+      await tx.eventInvitation.createMany({
+        data: celebration.events.map((event) => ({
+          eventId: event.id,
+          guestId: guest.id,
+          rsvpStatus,
+          mealChoice: optionalString(meals[index]),
+          respondedAt: rsvpStatus === "pending" ? null : new Date(),
+        })),
+      });
+    }
+  });
+
+  refresh(["/", "/guests", "/seating"]);
+}
+
+export async function removeGuest(formData: FormData) {
+  const guestId = requiredString(formData.get("guestId"), "Guest");
+  await prisma.$transaction([
+    prisma.seat.updateMany({ where: { guestId }, data: { guestId: null } }),
+    prisma.guest.delete({ where: { id: guestId } }),
+  ]);
+  refresh(["/", "/guests", "/seating"]);
+}
+
+export async function removeFamily(formData: FormData) {
+  const familyId = requiredString(formData.get("familyId"), "Family");
+  const members = await prisma.guest.findMany({ where: { householdId: familyId }, select: { id: true } });
+  const guestIds = members.map((member) => member.id);
+  await prisma.$transaction([
+    prisma.seat.updateMany({ where: { guestId: { in: guestIds } }, data: { guestId: null } }),
+    prisma.household.delete({ where: { id: familyId } }),
+  ]);
   refresh(["/", "/guests", "/seating"]);
 }
 
@@ -228,8 +311,8 @@ export async function seedDemoData() {
   if (existingGuestCount === 0) {
     await prisma.$transaction(async (tx) => {
       const samples = [
-        ["Aayush Family", "Aarav", "Kataria", 32, "male", "aayush_groom"],
-        ["Grace Family", "Mia", "Johnson", 29, "female", "grace_bride"],
+        ["Aayush Family", "Aarav", "Kataria", 32, "male", "aayush"],
+        ["Grace Family", "Mia", "Johnson", 29, "female", "grace"],
         ["Shared Friends", "Sam", "Lee", 30, "non_binary", "both"],
       ] as const;
 

@@ -1,156 +1,24 @@
 import Link from "next/link";
-import { seedDemoData } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
-import { buttonClass, Card } from "@/components/card";
+import { Badge, Card, Eyebrow, Progress } from "@/components/card";
 import { formatCents } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getAmericanCelebration } from "@/lib/wedding";
-
-export const dynamic = "force-dynamic";
-
-const sections = [
-  "Foundation",
-  "Guests",
-  "Coverage",
-  "Budget",
-  "Seating",
-  "Timeline",
-  "Dashboard",
-] as const;
-
-export default async function Home() {
-  const { wedding, celebration } = await getAmericanCelebration();
-  const [guestCount, attendingCount, coverageItems, budgetLines, tasks, timelineItems] =
-    await Promise.all([
-      prisma.guest.count(),
-      prisma.eventInvitation.count({ where: { rsvpStatus: "attending" } }),
-      prisma.coverageItem.findMany({
-        where: { celebrationId: celebration.id },
-        orderBy: { service: "asc" },
-      }),
-      prisma.budgetLine.findMany({
-        where: { weddingId: wedding.id },
-        orderBy: { category: "asc" },
-      }),
-      prisma.task.findMany({
-        where: { weddingId: wedding.id },
-        orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
-        take: 8,
-      }),
-      prisma.timelineItem.findMany({
-        where: { event: { celebrationId: celebration.id } },
-        orderBy: { startsAt: "asc" },
-        take: 5,
-      }),
-    ]);
-
-  const outsideCoverage = coverageItems.filter((item) => item.ownedBy === "outside_vendor").length;
-  const tbdCoverage = coverageItems.filter((item) => item.ownedBy === "tbd").length;
-  const estimatedTotal = budgetLines.reduce((sum, line) => sum + line.estimatedCents, 0);
-  const actualTotal = budgetLines.reduce((sum, line) => sum + (line.actualCents ?? 0), 0);
-  const openTasks = tasks.filter((task) => task.status !== "done").length;
-
-  return (
-    <AppShell>
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <p className="text-sm text-ink/55">Guests</p>
-          <p className="mt-2 text-4xl font-semibold text-ink">{guestCount}</p>
-          <p className="mt-2 text-sm text-ink/60">{attendingCount} event RSVPs attending</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-ink/55">Coverage gaps</p>
-          <p className="mt-2 text-4xl font-semibold text-ink">{outsideCoverage}</p>
-          <p className="mt-2 text-sm text-ink/60">{tbdCoverage} services still need an owner</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-ink/55">Budget</p>
-          <p className="mt-2 text-4xl font-semibold text-ink">{formatCents(estimatedTotal)}</p>
-          <p className="mt-2 text-sm text-ink/60">{formatCents(actualTotal)} actual so far</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-ink/55">Checklist</p>
-          <p className="mt-2 text-4xl font-semibold text-ink">{openTasks}</p>
-          <p className="mt-2 text-sm text-ink/60">open priority tasks loaded</p>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sage">
-                Planner sections
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold text-ink">What is ready to use</h2>
-            </div>
-            <form action={seedDemoData}>
-              <button className={buttonClass} type="submit">
-                Add demo data
-              </button>
-            </form>
-          </div>
-          <div className="mt-6 grid gap-3 md:grid-cols-7">
-            {sections.map((section) => (
-              <div className="rounded-2xl bg-linen p-4 text-sm font-medium text-ink" key={section}>
-                {section}
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sage">Fast links</p>
-          <div className="mt-5 grid gap-3">
-            {[
-              ["/guests", "Add guests by name, age, gender, and side"],
-              ["/coverage", "Review services the venue does not cover"],
-              ["/budget", "Track estimates, actuals, and payers"],
-              ["/seating", "Create tables and assign confirmed guests"],
-              ["/checklist", "Manage planning tasks and chains"],
-              ["/timeline", "Build the day-of run of show"],
-            ].map(([href, label]) => (
-              <Link className="rounded-2xl bg-linen p-4 text-sm font-medium text-ink" href={href} key={href}>
-                {label}
-              </Link>
-            ))}
-          </div>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <h2 className="text-2xl font-semibold text-ink">Next tasks</h2>
-          <div className="mt-4 divide-y divide-ink/10">
-            {tasks.map((task) => (
-              <div className="flex items-center justify-between gap-4 py-3" key={task.id}>
-                <div>
-                  <p className="font-medium text-ink">{task.title}</p>
-                  <p className="text-sm text-ink/55">{task.category ?? "General"} | {task.status}</p>
-                </div>
-                <p className="text-sm text-ink/45">
-                  {task.dueDate ? task.dueDate.toLocaleDateString("en-US") : "No date"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-2xl font-semibold text-ink">Upcoming timeline</h2>
-          <div className="mt-4 divide-y divide-ink/10">
-            {timelineItems.map((item) => (
-              <div className="py-3" key={item.id}>
-                <p className="font-medium text-ink">{item.title}</p>
-                <p className="text-sm text-ink/55">
-                  {item.startsAt.toLocaleString("en-US")} | {item.owner ?? "Unassigned"}
-                </p>
-              </div>
-            ))}
-            {timelineItems.length === 0 ? <p className="text-sm text-ink/55">No timeline yet.</p> : null}
-          </div>
-        </Card>
-      </section>
-    </AppShell>
-  );
+export const dynamic="force-dynamic";
+export default async function Home(){
+ const {wedding,celebration}=await getAmericanCelebration();
+ const [guestCount,attending,pending,coverage,budget,tasks,timeline,vendors]=await Promise.all([
+  prisma.guest.count(),prisma.eventInvitation.count({where:{rsvpStatus:"attending"}}),prisma.eventInvitation.count({where:{rsvpStatus:"pending"}}),prisma.coverageItem.findMany({where:{celebrationId:celebration.id}}),prisma.budgetLine.findMany({where:{weddingId:wedding.id}}),prisma.task.findMany({where:{weddingId:wedding.id},orderBy:[{dueDate:"asc"},{sortOrder:"asc"}]}),prisma.timelineItem.findMany({where:{event:{celebrationId:celebration.id}},orderBy:{startsAt:"asc"},take:4}),prisma.vendor.findMany({where:{weddingId:wedding.id}})
+ ]);
+ const done=tasks.filter(t=>t.status==="done").length, open=tasks.filter(t=>t.status!=="done"), progress=tasks.length?Math.round(done/tasks.length*100):0;
+ const estimated=budget.reduce((s,l)=>s+l.estimatedCents,0),actual=budget.reduce((s,l)=>s+(l.actualCents??0),0), booked=vendors.filter(v=>v.status==="booked").length;
+ const days=celebration.date?Math.max(0,Math.ceil((celebration.date.getTime()-Date.now())/86400000)):null;
+ return <AppShell>
+  <header className="flex flex-col gap-5 border-b border-line pb-7 sm:flex-row sm:items-end sm:justify-between"><div><Eyebrow>Aayush & Grace · {celebration.date?.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})??"Date to come"}</Eyebrow><h2 className="mt-3 font-display text-5xl font-semibold leading-[.95] text-ink sm:text-6xl">Good evening, Aayush.</h2><p className="mt-4 text-mist">You have <span className="font-semibold text-ink">{open.length} things</span> still moving toward the wedding.</p></div><div className="rounded-2xl bg-sage-light px-5 py-4 text-right"><p className="font-display text-3xl font-semibold text-sage-dark">{days??"—"}</p><p className="text-xs font-semibold uppercase tracking-wider text-sage-dark/70">days to go</p></div></header>
+  <Card className="bg-[#f3f0e9]"><div className="flex items-end justify-between"><div><Eyebrow>Planning progress</Eyebrow><p className="mt-2 font-display text-4xl font-semibold">{progress}% planned</p></div><p className="text-sm text-mist">{done} of {tasks.length} tasks complete</p></div><div className="mt-5"><Progress value={progress}/></div></Card>
+  <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[["Checklist",`${done} / ${tasks.length}`,`${open.length} open`,`/checklist`],["Guests",String(guestCount),`${attending} attending · ${pending} pending`,`/guests`],["Budget",formatCents(actual),`of ${formatCents(estimated)} committed`,`/budget`],["Vendors",`${booked} / ${vendors.length}`,`${coverage.filter(c=>c.ownedBy==="tbd").length} coverage decisions`,`/vendors`]].map(([label,value,detail,href])=><Link href={href} key={label}><Card className="h-full transition hover:-translate-y-0.5 hover:border-sage/40"><p className="text-xs font-bold uppercase tracking-[.16em] text-mist">{label}</p><p className="stat-value">{value}</p><p className="mt-2 text-xs text-mist">{detail}</p></Card></Link>)}</section>
+  <section className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><Card><div className="flex items-center justify-between"><div><Eyebrow>What needs your attention</Eyebrow><h3 className="mt-1 font-display text-3xl font-semibold">Next up</h3></div><Link href="/checklist" className="text-xs font-semibold text-sage-dark">View checklist →</Link></div><div className="mt-3">{open.slice(0,5).map(t=><div className="row flex items-center gap-4" key={t.id}><span className="h-5 w-5 shrink-0 rounded-full border-2 border-sage/35"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{t.title}</p><p className="mt-1 text-xs text-mist">{t.category??"General"} · {t.assignee??"Both"}</p></div><Badge tone={t.status==="blocked"?"danger":"neutral"}>{t.dueDate?t.dueDate.toLocaleDateString("en-US",{month:"short",day:"numeric"}):"No date"}</Badge></div>)}{open.length===0&&<p className="py-8 text-center text-sm text-mist">Everything is beautifully up to date.</p>}</div></Card>
+  <Card><Eyebrow>Wedding day</Eyebrow><h3 className="mt-1 font-display text-3xl font-semibold">Upcoming</h3><div className="mt-3">{timeline.map(item=><div className="row grid grid-cols-[4rem_1fr] gap-3" key={item.id}><p className="text-xs font-bold text-sage-dark">{item.startsAt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</p><div><p className="text-sm font-semibold">{item.title}</p><p className="mt-1 text-xs text-mist">{item.location??item.owner??"Details to come"}</p></div></div>)}</div><Link href="/timeline" className="mt-4 inline-block text-xs font-semibold text-sage-dark">View timeline →</Link></Card></section>
+  <Card><Eyebrow>Wedding journey</Eyebrow><div className="mt-5 grid grid-cols-4 text-center"><div><span className="mx-auto grid h-8 w-8 place-items-center rounded-full bg-sage text-white">✓</span><p className="mt-2 text-xs font-semibold">Foundation</p></div><div><span className="mx-auto grid h-8 w-8 place-items-center rounded-full bg-sage text-white">●</span><p className="mt-2 text-xs font-semibold">Vendors</p></div><div><span className="mx-auto grid h-8 w-8 place-items-center rounded-full border-2 border-sage bg-white">○</span><p className="mt-2 text-xs font-semibold">Guests</p></div><div><span className="mx-auto grid h-8 w-8 place-items-center rounded-full border border-line bg-linen">○</span><p className="mt-2 text-xs font-semibold">Final details</p></div></div><div className="mx-[12.5%] -mt-[3.9rem] mb-14 h-px bg-line"/></Card>
+ </AppShell>
 }

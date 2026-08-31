@@ -1,41 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authCookie, authIsConfigured, verifySessionToken } from "@/lib/auth";
 
-const username = process.env.BASIC_AUTH_USERNAME;
-const password = process.env.BASIC_AUTH_PASSWORD;
-
-function isAuthorized(request: NextRequest) {
-  if (!username || !password) {
-    return true;
-  }
-
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Basic ")) {
-    return false;
-  }
-
-  const decoded = atob(authHeader.slice("Basic ".length));
-  const separator = decoded.indexOf(":");
-
-  if (separator === -1) {
-    return false;
-  }
-
-  return decoded.slice(0, separator) === username && decoded.slice(separator + 1) === password;
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (pathname === "/login" || pathname === "/api/auth/login") return NextResponse.next();
+  if (!authIsConfigured()) return new NextResponse("Private access is not configured. Add AUTH_USERS_JSON and AUTH_SESSION_SECRET.", { status: 503 });
+  if (await verifySessionToken(request.cookies.get(authCookie.name)?.value)) return NextResponse.next();
+  return NextResponse.redirect(new URL("/login", request.url));
 }
 
-export function middleware(request: NextRequest) {
-  if (isAuthorized(request)) {
-    return NextResponse.next();
-  }
-
-  return new NextResponse("Authentication required", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Wedding Planner"',
-    },
-  });
-}
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };

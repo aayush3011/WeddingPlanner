@@ -26,11 +26,14 @@ const outsideVendorServices = new Set(["photography", "officiant", "hair_makeup"
 async function main() {
   const wedding = await prisma.wedding.upsert({
     where: { id: "default-wedding" },
-    update: {},
+    update: {
+      partnerAName: "Aayush",
+      partnerBName: "Grace",
+    },
     create: {
       id: "default-wedding",
-      partnerAName: "Partner A",
-      partnerBName: "Partner B",
+      partnerAName: "Aayush",
+      partnerBName: "Grace",
     },
   });
 
@@ -41,11 +44,15 @@ async function main() {
         kind: "american",
       },
     },
-    update: {},
+    update: {
+      name: "American Wedding",
+      date: new Date("2027-06-12T19:00:00.000Z"),
+    },
     create: {
       weddingId: wedding.id,
       kind: "american",
       name: "American Wedding",
+      date: new Date("2027-06-12T19:00:00.000Z"),
       timezone: "America/Los_Angeles",
     },
   });

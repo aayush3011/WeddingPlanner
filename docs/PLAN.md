@@ -128,7 +128,7 @@ Blocked on RSVPs closing. Needs the venue's floor plan (table count, shapes, cap
 | # | Milestone | Contents |
 |---|---|---|
 | M0 | Foundation | Next.js + TS scaffold, Prisma schema, seed data, app shell and nav |
-| M1 | Guests & RSVP | Household to guest entry, age, gender, Aayush groom or Grace bride side, tags, plus-ones, meals, dietary, CSV in/out, non-responder list |
+| M1 | Guests & RSVP | Household to guest entry, age, gender, Aayush or Grace side, tags, plus-ones, meals, dietary, CSV in/out, non-responder list |
 | M2 | Coverage & vendors | Coverage matrix, plus tracking for the five gaps with quote comparison |
 | M3 | Budget | Venue contract as anchor line, payment/deposit schedule, estimated → actual → paid |
 | M4 | Seat map | Tables, drag-and-drop, constraint warnings, card and meal-count exports |
@@ -138,8 +138,8 @@ Blocked on RSVPs closing. Needs the venue's floor plan (table count, shapes, cap
 M1 comes before M4 because the seat map is meaningless without confirmed RSVPs.
 
 The guest entry page must support adding a guest with first name, last name, age, gender, and
-whether they are an Aayush groom guest, a Grace bride guest, or shared by both sides. That side
-field drives counts, seating review, family-list filtering, and later RSVP reporting.
+whether they belong to Aayush, Grace, or both. That side field drives counts, seating review,
+family-list filtering, and later RSVP reporting.
 
 ## 5. Deliberately out of scope for now
 
