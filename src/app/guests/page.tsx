@@ -17,10 +17,10 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
     orderBy: { name: "asc" },
     include: {
       guests: {
-        orderBy: { lastName: "asc" },
+        orderBy: { firstName: "asc" },
         include: {
           invitations: {
-            where: { event: { celebrationId: celebration.id } },
+            where: { event: { celebrationId: celebration.id, kind: "ceremony" } },
             include: { event: true },
             orderBy: { event: { sortOrder: "asc" } },
           },
@@ -78,11 +78,11 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
         const confirmed = family.guests.filter((guest) => guest.invitations[0]?.rsvpStatus === "attending").length;
         return <Card key={family.id}>
           <div className="flex items-start justify-between gap-4"><div><h3 className="font-display text-2xl font-semibold">{family.name}</h3><p className="mt-1 text-xs text-mist">{family.guests.length} family {family.guests.length === 1 ? "member" : "members"} · {confirmed} attending</p></div><div className="grid justify-items-end gap-2"><Badge tone={confirmed === family.guests.length ? "sage" : "gold"}>{confirmed === family.guests.length ? "Confirmed" : "Needs response"}</Badge><DeleteControl id={family.id} kind="family" name={family.name} /></div></div>
-          <div className="mt-4">{family.guests.map((guest) => <div className="row" key={guest.id}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">{guest.firstName} {guest.lastName}</p><p className="mt-1 text-xs capitalize text-mist">{guest.ageBand} · {guest.side?.replaceAll("_", " ") ?? "Shared"}{guest.invitations[0]?.mealChoice ? ` · ${guest.invitations[0].mealChoice}` : ""}</p></div><div className="grid justify-items-end gap-2"><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge><DeleteControl id={guest.id} kind="guest" name={`${guest.firstName} ${guest.lastName}`} /></div></div>{responseForm({ ...guest, familyName: family.name })}</div>)}</div>
+          <div className="mt-4">{family.guests.map((guest) => <div className="row" key={guest.id}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">{guest.firstName}</p><p className="mt-1 text-xs capitalize text-mist">{guest.ageBand} · {guest.side?.replaceAll("_", " ") ?? "Shared"}{guest.invitations[0]?.mealChoice ? ` · ${guest.invitations[0].mealChoice}` : ""}</p></div><div className="grid justify-items-end gap-2"><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge><DeleteControl id={guest.id} kind="guest" name={guest.firstName} /></div></div>{responseForm({ ...guest, familyName: family.name })}</div>)}</div>
         </Card>;
       })}
     </div> : <Card>
-      <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Guest</th><th>Family</th><th>Side</th><th>RSVP</th><th>Meal</th><th>Actions</th></tr></thead><tbody>{guests.map((guest) => <tr className="border-b border-line last:border-0" key={guest.id}><td className="py-4 font-semibold">{guest.firstName} {guest.lastName}</td><td>{guest.familyName}</td><td className="capitalize text-mist">{guest.side?.replaceAll("_", " ")}</td><td><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge></td><td className="capitalize text-mist">{guest.invitations[0]?.mealChoice ?? "Not selected"}</td><td><div className="grid gap-2">{responseForm(guest)}<DeleteControl id={guest.id} kind="guest" name={`${guest.firstName} ${guest.lastName}`} /></div></td></tr>)}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Guest</th><th>Family</th><th>Side</th><th>Ceremony RSVP</th><th>Meal</th><th>Actions</th></tr></thead><tbody>{guests.map((guest) => <tr className="border-b border-line last:border-0" key={guest.id}><td className="py-4 font-semibold">{guest.firstName}</td><td>{guest.familyName}</td><td className="capitalize text-mist">{guest.side?.replaceAll("_", " ")}</td><td><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge></td><td className="capitalize text-mist">{guest.invitations[0]?.mealChoice ?? "Not selected"}</td><td><div className="grid gap-2">{responseForm(guest)}<DeleteControl id={guest.id} kind="guest" name={guest.firstName} /></div></td></tr>)}</tbody></table></div>
     </Card>}
   </AppShell>;
 }

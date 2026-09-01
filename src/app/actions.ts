@@ -15,10 +15,7 @@ export async function addGuest(formData: FormData) {
   const { wedding, celebration } = await getAmericanCelebration();
   const householdName =
     optionalString(formData.get("householdName")) ??
-    `${requiredString(formData.get("firstName"), "First name")} ${requiredString(
-      formData.get("lastName"),
-      "Last name",
-    )}`;
+    requiredString(formData.get("firstName"), "First name");
   await prisma.$transaction(async (tx) => {
     const household = await tx.household.create({
       data: {
@@ -32,8 +29,7 @@ export async function addGuest(formData: FormData) {
       data: {
         householdId: household.id,
         firstName: requiredString(formData.get("firstName"), "First name"),
-        lastName: requiredString(formData.get("lastName"), "Last name"),
-        gender: optionalString(formData.get("gender")),
+        lastName: "",
         side: requiredString(formData.get("side"), "Side"),
         ageBand: requiredString(formData.get("ageBand"), "Age band"),
         dietary: optionalString(formData.get("dietary")),
@@ -41,14 +37,12 @@ export async function addGuest(formData: FormData) {
       },
     });
 
-    const rsvpStatus = optionalString(formData.get("rsvpStatus")) ?? "pending";
+    const ceremonyEvents = celebration.events.filter((event) => event.kind === "ceremony");
     await tx.eventInvitation.createMany({
-      data: celebration.events.map((event) => ({
+      data: ceremonyEvents.map((event) => ({
         eventId: event.id,
         guestId: guest.id,
-        rsvpStatus,
-        mealChoice: optionalString(formData.get("mealChoice")),
-        respondedAt: rsvpStatus === "pending" ? null : new Date(),
+        rsvpStatus: "pending",
       })),
     });
   });
@@ -59,13 +53,9 @@ export async function addGuest(formData: FormData) {
 export async function addFamily(formData: FormData) {
   const { wedding, celebration } = await getAmericanCelebration();
   const firstNames = formData.getAll("firstName");
-  const lastNames = formData.getAll("lastName");
-  const genders = formData.getAll("gender");
   const sides = formData.getAll("side");
   const ageBands = formData.getAll("ageBand");
   const dietary = formData.getAll("dietary");
-  const statuses = formData.getAll("rsvpStatus");
-  const meals = formData.getAll("mealChoice");
 
   if (firstNames.length === 0) throw new Error("Add at least one family member");
 
@@ -83,22 +73,19 @@ export async function addFamily(formData: FormData) {
         data: {
           householdId: family.id,
           firstName: requiredString(firstNames[index], "First name"),
-          lastName: requiredString(lastNames[index], "Last name"),
-          gender: optionalString(genders[index]),
+          lastName: "",
           side: requiredString(sides[index], "Side"),
           ageBand: requiredString(ageBands[index], "Guest type"),
           dietary: optionalString(dietary[index]),
         },
       });
 
-      const rsvpStatus = optionalString(statuses[index]) ?? "pending";
+      const ceremonyEvents = celebration.events.filter((event) => event.kind === "ceremony");
       await tx.eventInvitation.createMany({
-        data: celebration.events.map((event) => ({
+        data: ceremonyEvents.map((event) => ({
           eventId: event.id,
           guestId: guest.id,
-          rsvpStatus,
-          mealChoice: optionalString(meals[index]),
-          respondedAt: rsvpStatus === "pending" ? null : new Date(),
+          rsvpStatus: "pending",
         })),
       });
     }
