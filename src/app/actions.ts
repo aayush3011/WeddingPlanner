@@ -19,13 +19,6 @@ export async function addGuest(formData: FormData) {
       formData.get("lastName"),
       "Last name",
     )}`;
-  const ageValue = optionalString(formData.get("age"));
-  const age = ageValue ? Number(ageValue) : null;
-
-  if (age !== null && (!Number.isInteger(age) || age < 0)) {
-    throw new Error("Age must be a positive whole number");
-  }
-
   await prisma.$transaction(async (tx) => {
     const household = await tx.household.create({
       data: {
@@ -40,7 +33,6 @@ export async function addGuest(formData: FormData) {
         householdId: household.id,
         firstName: requiredString(formData.get("firstName"), "First name"),
         lastName: requiredString(formData.get("lastName"), "Last name"),
-        age,
         gender: optionalString(formData.get("gender")),
         side: requiredString(formData.get("side"), "Side"),
         ageBand: requiredString(formData.get("ageBand"), "Age band"),
@@ -68,7 +60,6 @@ export async function addFamily(formData: FormData) {
   const { wedding, celebration } = await getAmericanCelebration();
   const firstNames = formData.getAll("firstName");
   const lastNames = formData.getAll("lastName");
-  const ages = formData.getAll("age");
   const genders = formData.getAll("gender");
   const sides = formData.getAll("side");
   const ageBands = formData.getAll("ageBand");
@@ -88,18 +79,11 @@ export async function addFamily(formData: FormData) {
     });
 
     for (let index = 0; index < firstNames.length; index += 1) {
-      const ageValue = optionalString(ages[index]);
-      const age = ageValue ? Number(ageValue) : null;
-      if (age !== null && (!Number.isInteger(age) || age < 0)) {
-        throw new Error("Age must be a positive whole number");
-      }
-
       const guest = await tx.guest.create({
         data: {
           householdId: family.id,
           firstName: requiredString(firstNames[index], "First name"),
           lastName: requiredString(lastNames[index], "Last name"),
-          age,
           gender: optionalString(genders[index]),
           side: requiredString(sides[index], "Side"),
           ageBand: requiredString(ageBands[index], "Guest type"),

@@ -11,3 +11,5 @@ prisma/dev.db-journal
 
 .DS_Store
 .idea/
+.vercel
+.env*
