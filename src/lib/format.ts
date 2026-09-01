@@ -45,3 +45,16 @@ export function optionalString(value: FormDataEntryValue | null) {
 
   return value.trim();
 }
+
+export function formatGuestSide(side: string | null | undefined) {
+  if (side === "aayush" || side === "aayush_groom") return "Aayush";
+  if (side === "grace" || side === "grace_bride") return "Grace";
+  return "Shared";
+}
+
+export function formatGuestType(ageBand: string | null | undefined) {
+  if (ageBand === "teenager") return "Teenager";
+  if (ageBand === "kid" || ageBand === "child") return "Kid";
+  if (ageBand === "toddler") return "Toddler (4 & under)";
+  return "Adult";
+}
