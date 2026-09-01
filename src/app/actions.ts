@@ -21,6 +21,7 @@ export async function addGuest(formData: FormData) {
       data: {
         weddingId: wedding.id,
         name: householdName,
+        kind: "individual",
         rsvpCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
       },
     });
@@ -64,6 +65,7 @@ export async function addFamily(formData: FormData) {
       data: {
         weddingId: wedding.id,
         name: requiredString(formData.get("familyName"), "Family name"),
+        kind: "family",
         rsvpCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
       },
     });
@@ -100,7 +102,7 @@ export async function addFamilyMember(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     const family = await tx.household.findFirst({
-      where: { id: familyId, weddingId: wedding.id },
+      where: { id: familyId, weddingId: wedding.id, kind: "family" },
       select: { id: true },
     });
 

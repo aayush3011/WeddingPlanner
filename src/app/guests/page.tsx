@@ -14,8 +14,8 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
   const { view } = await searchParams;
   const activeView = view === "guests" ? "guests" : "families";
   const { celebration } = await getAmericanCelebration();
-  const families = await prisma.household.findMany({
-    orderBy: { name: "asc" },
+  const households = await prisma.household.findMany({
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: {
       guests: {
         orderBy: { firstName: "asc" },
@@ -29,7 +29,11 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
       },
     },
   });
-  const guests = families.flatMap((family) => family.guests.map((guest) => ({ ...guest, familyName: family.name })));
+  const families = households.filter((household) => household.kind === "family");
+  const guests = households.flatMap((household) => household.guests.map((guest) => ({
+    ...guest,
+    familyName: household.kind === "family" ? household.name : null,
+  })));
   const statuses = guests.map((guest) => guest.invitations[0]?.rsvpStatus ?? "pending");
   const attending = statuses.filter((status) => status === "attending").length;
   const pending = statuses.filter((status) => status === "pending" || status === "tentative").length;
@@ -83,7 +87,7 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
         </Card>;
       })}
     </div> : <Card>
-      <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Guest</th><th>Family</th><th>Side</th><th>Ceremony RSVP</th><th>Meal</th><th>Actions</th></tr></thead><tbody>{guests.map((guest) => <tr className="border-b border-line last:border-0" key={guest.id}><td className="py-4 font-semibold">{guest.firstName}</td><td>{guest.familyName}</td><td className="text-mist">{formatGuestSide(guest.side)}</td><td><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge></td><td className="capitalize text-mist">{guest.invitations[0]?.mealChoice ?? "Not selected"}</td><td><div className="grid gap-2">{responseForm(guest)}<DeleteControl id={guest.id} kind="guest" name={guest.firstName} /></div></td></tr>)}</tbody></table></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Guest</th><th>Family</th><th>Side</th><th>Ceremony RSVP</th><th>Meal</th><th>Actions</th></tr></thead><tbody>{guests.map((guest) => <tr className="border-b border-line last:border-0" key={guest.id}><td className="py-4 font-semibold">{guest.firstName}</td><td className="text-mist">{guest.familyName ?? "—"}</td><td className="text-mist">{formatGuestSide(guest.side)}</td><td><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge></td><td className="capitalize text-mist">{guest.invitations[0]?.mealChoice ?? "Not selected"}</td><td><div className="grid gap-2">{responseForm(guest)}<DeleteControl id={guest.id} kind="guest" name={guest.firstName} /></div></td></tr>)}</tbody></table></div>
     </Card>}
   </AppShell>;
 }
