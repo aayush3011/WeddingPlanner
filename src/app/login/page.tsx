@@ -4,7 +4,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <section className="hidden bg-sage p-12 text-white lg:flex lg:flex-col lg:justify-between">
       <p className="text-xs font-bold uppercase tracking-[.3em] text-white/70">Our wedding</p>
       <div><p className="font-display text-7xl font-semibold leading-[.9]">Aayush<br/><span className="italic text-[#ead3cb]">& Grace</span></p><p className="mt-6 max-w-md text-base leading-7 text-white/70">One quiet place for every guest, payment, decision, and wedding-day detail.</p></div>
-      <p className="text-xs text-white/60">June 12 · 2027 · California</p>
+      <p className="text-xs text-white/60">October 2 · 2027 · Washington</p>
     </section>
     <section className="grid place-items-center px-5 py-12">
       <div className="w-full max-w-md rounded-2xl border border-line bg-white p-7 sm:p-9">

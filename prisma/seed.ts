@@ -46,13 +46,13 @@ async function main() {
     },
     update: {
       name: "American Wedding",
-      date: new Date("2027-06-12T19:00:00.000Z"),
+      date: new Date("2027-10-02T19:00:00.000Z"),
     },
     create: {
       weddingId: wedding.id,
       kind: "american",
       name: "American Wedding",
-      date: new Date("2027-06-12T19:00:00.000Z"),
+      date: new Date("2027-10-02T19:00:00.000Z"),
       timezone: "America/Los_Angeles",
     },
   });
