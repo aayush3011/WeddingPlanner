@@ -1,0 +1,340 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Wedding {
+  id           String   @id @default(cuid())
+  partnerAName String
+  partnerBName String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  celebrations Celebration[]
+  households   Household[]
+  guestTags    Tag[]
+  vendors      Vendor[]
+  budgetLines  BudgetLine[]
+  tasks        Task[]
+  partyMembers WeddingPartyMember[]
+}
+
+model Celebration {
+  id          String    @id @default(cuid())
+  weddingId   String
+  wedding     Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  kind        String
+  name        String
+  date        DateTime?
+  timezone    String    @default("America/Los_Angeles")
+  budgetCents Int?
+  venueId     String?
+  venue       Vendor?   @relation(fields: [venueId], references: [id])
+
+  events      Event[]
+  coverage    CoverageItem[]
+  budgetLines BudgetLine[]
+  tasks       Task[]
+
+  @@unique([weddingId, kind])
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  celebrationId String
+  celebration   Celebration @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
+  kind          String
+  name          String
+  startsAt      DateTime?
+  endsAt        DateTime?
+  location      String?
+  dressCode     String?
+  sortOrder     Int         @default(0)
+
+  invitations   EventInvitation[]
+  eventVendors  EventVendor[]
+  tables        SeatingTable[]
+  seats         Seat[]
+  constraints   SeatingConstraint[]
+  timelineItems TimelineItem[]
+}
+
+model Household {
+  id                String    @id @default(cuid())
+  weddingId         String
+  wedding           Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  name              String
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String    @default("USA")
+  email             String?
+  phone             String?
+  saveTheDateSentAt DateTime?
+  inviteSentAt      DateTime?
+  rsvpCode          String    @unique
+  notes             String?
+
+  guests Guest[]
+}
+
+model Guest {
+  id             String    @id @default(cuid())
+  householdId    String
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  side           String?
+  age            Int?
+  gender         String?
+  ageBand        String    @default("adult")
+  isPlusOne      Boolean   @default(false)
+  plusOneAllowed Boolean   @default(false)
+  dietary        String?
+  notes          String?
+
+  tags         GuestTag[]
+  invitations  EventInvitation[]
+  seats        Seat[]
+  constraintsA SeatingConstraint[] @relation("ConstraintGuestA")
+  constraintsB SeatingConstraint[] @relation("ConstraintGuestB")
+}
+
+model Tag {
+  id        String  @id @default(cuid())
+  weddingId String
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  label     String
+  color     String?
+
+  guests GuestTag[]
+
+  @@unique([weddingId, label])
+}
+
+model GuestTag {
+  guestId String
+  tagId   String
+  guest   Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([guestId, tagId])
+}
+
+model EventInvitation {
+  id          String    @id @default(cuid())
+  eventId     String
+  guestId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guest       Guest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  rsvpStatus  String    @default("pending")
+  respondedAt DateTime?
+  mealChoice  String?
+  notes       String?
+
+  @@unique([eventId, guestId])
+}
+
+model Vendor {
+  id             String  @id @default(cuid())
+  weddingId      String
+  wedding        Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  name           String
+  category       String
+  status         String  @default("researching")
+  contactName    String?
+  email          String?
+  phone          String?
+  website        String?
+  quoteCents     Int?
+  isAllInclusive Boolean @default(false)
+  rating         Int?
+  notes          String?
+
+  inclusions    PackageInclusion[]
+  coverageItems CoverageItem[]
+  eventVendors  EventVendor[]
+  budgetLines   BudgetLine[]
+  timelineItems TimelineItem[]
+  documents     Document[]
+  venueFor      Celebration[]
+}
+
+model PackageInclusion {
+  id       String  @id @default(cuid())
+  vendorId String
+  vendor   Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  service  String
+  included Boolean @default(true)
+  notes    String?
+
+  @@unique([vendorId, service])
+}
+
+model CoverageItem {
+  id            String      @id @default(cuid())
+  celebrationId String
+  celebration   Celebration @relation(fields: [celebrationId], references: [id], onDelete: Cascade)
+  service       String
+  ownedBy       String      @default("tbd")
+  vendorId      String?
+  vendor        Vendor?     @relation(fields: [vendorId], references: [id])
+  notes         String?
+
+  @@unique([celebrationId, service])
+}
+
+model EventVendor {
+  id       String    @id @default(cuid())
+  eventId  String
+  vendorId String
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  vendor   Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  callTime DateTime?
+  role     String?
+
+  @@unique([eventId, vendorId])
+}
+
+model BudgetLine {
+  id             String       @id @default(cuid())
+  weddingId      String
+  wedding        Wedding      @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  celebrationId  String?
+  celebration    Celebration? @relation(fields: [celebrationId], references: [id])
+  category       String
+  label          String
+  estimatedCents Int          @default(0)
+  actualCents    Int?
+  vendorId       String?
+  vendor         Vendor?      @relation(fields: [vendorId], references: [id])
+  paidBy         String?
+  notes          String?
+
+  payments Payment[]
+}
+
+model Payment {
+  id           String     @id @default(cuid())
+  budgetLineId String
+  budgetLine   BudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  label        String
+  amountCents  Int
+  dueDate      DateTime?
+  paidAt       DateTime?
+  method       String?
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  weddingId     String
+  wedding       Wedding      @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  celebrationId String?
+  celebration   Celebration? @relation(fields: [celebrationId], references: [id])
+  title         String
+  description   String?
+  category      String?
+  bucket        String?
+  dueDate       DateTime?
+  assignee      String?
+  status        String       @default("pending")
+  chain         String?
+  sortOrder     Int          @default(0)
+
+  dependencies TaskDependency[] @relation("Dependent")
+  dependents   TaskDependency[] @relation("Blocker")
+}
+
+model TaskDependency {
+  taskId      String
+  dependsOnId String
+  task        Task   @relation("Dependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn   Task   @relation("Blocker", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, dependsOnId])
+}
+
+model SeatingTable {
+  id       String @id @default(cuid())
+  eventId  String
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name     String
+  shape    String @default("round")
+  capacity Int    @default(8)
+  x        Float  @default(0)
+  y        Float  @default(0)
+  rotation Float  @default(0)
+
+  seats Seat[]
+}
+
+model Seat {
+  id       String       @id @default(cuid())
+  tableId  String
+  table    SeatingTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  eventId  String
+  event    Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  position Int
+  guestId  String?
+  guest    Guest?       @relation(fields: [guestId], references: [id])
+
+  @@unique([tableId, position])
+  @@unique([eventId, guestId])
+}
+
+model SeatingConstraint {
+  id       String @id @default(cuid())
+  eventId  String
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestAId String
+  guestBId String
+  guestA   Guest  @relation("ConstraintGuestA", fields: [guestAId], references: [id], onDelete: Cascade)
+  guestB   Guest  @relation("ConstraintGuestB", fields: [guestBId], references: [id], onDelete: Cascade)
+  kind     String
+
+  @@unique([eventId, guestAId, guestBId])
+}
+
+model TimelineItem {
+  id              String   @id @default(cuid())
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  startsAt        DateTime
+  durationMinutes Int?
+  title           String
+  location        String?
+  owner           String?
+  vendorId        String?
+  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
+  notes           String?
+}
+
+model WeddingPartyMember {
+  id         String  @id @default(cuid())
+  weddingId  String
+  wedding    Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  name       String
+  role       String
+  side       String?
+  email      String?
+  phone      String?
+  attireSize String?
+  attirePaid Boolean @default(false)
+  notes      String?
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  vendorId   String?
+  vendor     Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  label      String
+  kind       String?
+  filePath   String
+  uploadedAt DateTime @default(now())
+}
