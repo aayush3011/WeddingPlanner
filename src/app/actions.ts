@@ -341,14 +341,14 @@ export async function seedDemoData() {
         data: [
           {
             eventId: ceremony.id,
-            startsAt: new Date("2027-06-12T21:00:00.000Z"),
+            startsAt: new Date("2027-10-02T21:00:00.000Z"),
             durationMinutes: 30,
             title: "Ceremony",
             owner: "Officiant",
           },
           {
             eventId: ceremony.id,
-            startsAt: new Date("2027-06-12T22:00:00.000Z"),
+            startsAt: new Date("2027-10-02T22:00:00.000Z"),
             durationMinutes: 60,
             title: "Family photos",
             owner: "Photographer",
