@@ -68,6 +68,8 @@ model Household {
   weddingId         String
   wedding           Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
   name              String
+  kind              String    @default("family")
+  createdAt         DateTime  @default(now())
   addressLine1      String?
   addressLine2      String?
   city              String?
@@ -82,6 +84,8 @@ model Household {
   notes             String?
 
   guests Guest[]
+
+  @@index([weddingId, kind, createdAt])
 }
 
 model Guest {

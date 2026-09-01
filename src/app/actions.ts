@@ -21,6 +21,7 @@ export async function addGuest(formData: FormData) {
       data: {
         weddingId: wedding.id,
         name: householdName,
+        kind: "individual",
         rsvpCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
       },
     });
@@ -64,6 +65,7 @@ export async function addFamily(formData: FormData) {
       data: {
         weddingId: wedding.id,
         name: requiredString(formData.get("familyName"), "Family name"),
+        kind: "family",
         rsvpCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
       },
     });
@@ -88,6 +90,90 @@ export async function addFamily(formData: FormData) {
           rsvpStatus: "pending",
         })),
       });
+    }
+  });
+
+  refresh(["/", "/guests", "/seating"]);
+}
+
+export async function addFamilyMember(formData: FormData) {
+  const { wedding, celebration } = await getAmericanCelebration();
+  const familyId = requiredString(formData.get("familyId"), "Family");
+
+  await prisma.$transaction(async (tx) => {
+    const family = await tx.household.findFirst({
+      where: { id: familyId, weddingId: wedding.id, kind: "family" },
+      select: { id: true },
+    });
+
+    if (!family) throw new Error("Family not found");
+
+    const guest = await tx.guest.create({
+      data: {
+        householdId: family.id,
+        firstName: requiredString(formData.get("firstName"), "Name"),
+        lastName: "",
+        side: requiredString(formData.get("side"), "Side"),
+        ageBand: requiredString(formData.get("ageBand"), "Guest type"),
+        dietary: optionalString(formData.get("dietary")),
+        notes: optionalString(formData.get("notes")),
+      },
+    });
+
+    const ceremonyEvents = celebration.events.filter((event) => event.kind === "ceremony");
+    await tx.eventInvitation.createMany({
+      data: ceremonyEvents.map((event) => ({
+        eventId: event.id,
+        guestId: guest.id,
+        rsvpStatus: "pending",
+      })),
+    });
+  });
+
+  refresh(["/", "/guests", "/seating"]);
+}
+
+export async function updateFamily(formData: FormData) {
+  const familyId = requiredString(formData.get("familyId"), "Family");
+  const guestIds = formData.getAll("guestId");
+  const firstNames = formData.getAll("firstName");
+  const sides = formData.getAll("side");
+  const ageBands = formData.getAll("ageBand");
+  const dietary = formData.getAll("dietary");
+  const notes = formData.getAll("notes");
+
+  if (
+    guestIds.length !== firstNames.length ||
+    guestIds.length !== sides.length ||
+    guestIds.length !== ageBands.length
+  ) {
+    throw new Error("Family member details are incomplete");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.household.update({
+      where: { id: familyId },
+      data: { name: requiredString(formData.get("familyName"), "Family name") },
+    });
+
+    for (let index = 0; index < guestIds.length; index += 1) {
+      const result = await tx.guest.updateMany({
+        where: {
+          id: requiredString(guestIds[index], "Guest"),
+          householdId: familyId,
+        },
+        data: {
+          firstName: requiredString(firstNames[index], "Name"),
+          lastName: "",
+          gender: null,
+          side: requiredString(sides[index], "Side"),
+          ageBand: requiredString(ageBands[index], "Guest type"),
+          dietary: optionalString(dietary[index]),
+          notes: optionalString(notes[index]),
+        },
+      });
+
+      if (result.count !== 1) throw new Error("Family member not found");
     }
   });
 
@@ -282,12 +368,12 @@ export async function seedDemoData() {
   if (existingGuestCount === 0) {
     await prisma.$transaction(async (tx) => {
       const samples = [
-        ["Aayush Family", "Aarav", "Kataria", 32, "male", "aayush"],
-        ["Grace Family", "Mia", "Johnson", 29, "female", "grace"],
-        ["Shared Friends", "Sam", "Lee", 30, "non_binary", "both"],
+        ["Aayush Family", "Aarav", "aayush"],
+        ["Grace Family", "Mia", "grace"],
+        ["Shared Friends", "Sam", "both"],
       ] as const;
 
-      for (const [householdName, firstName, lastName, age, gender, side] of samples) {
+      for (const [householdName, firstName, side] of samples) {
         const household = await tx.household.create({
           data: {
             weddingId: wedding.id,
@@ -300,9 +386,7 @@ export async function seedDemoData() {
           data: {
             householdId: household.id,
             firstName,
-            lastName,
-            age,
-            gender,
+            lastName: "",
             side,
           },
         });
