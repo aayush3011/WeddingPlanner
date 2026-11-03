@@ -29,13 +29,18 @@ Prisma migration against that database.
 ## Required production environment variables
 
 ```env
-DATABASE_URL="postgresql://..."
+DATABASE_URL="postgresql://..."   # pooled connection (Neon host ending in -pooler)
+DIRECT_URL="postgresql://..."     # direct connection, used by prisma migrate during the build
 BASIC_AUTH_USERNAME="..."
 BASIC_AUTH_PASSWORD="..."
 ```
 
 If `BASIC_AUTH_USERNAME` or `BASIC_AUTH_PASSWORD` is missing, password protection is disabled.
 That is convenient locally but should not be used for the shared deployment.
+
+`prisma migrate deploy` takes a Postgres advisory lock, which does not work through Neon's
+connection pooler, so `DIRECT_URL` must point at the direct host (the pooled host without
+`-pooler`). Without it, builds fail with `P1002 ... Timed out trying to acquire a postgres advisory lock`.
 
 ## Later upgrade path
 
