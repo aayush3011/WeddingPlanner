@@ -46,13 +46,13 @@ async function main() {
     },
     update: {
       name: "American Wedding",
-      date: new Date("2027-10-02T19:00:00.000Z"),
+      date: new Date("2027-09-19T19:00:00.000Z"),
     },
     create: {
       weddingId: wedding.id,
       kind: "american",
       name: "American Wedding",
-      date: new Date("2027-10-02T19:00:00.000Z"),
+      date: new Date("2027-09-19T19:00:00.000Z"),
       timezone: "America/Los_Angeles",
     },
   });
@@ -101,29 +101,9 @@ async function main() {
   );
 
   await Promise.all([
-    prisma.budgetLine.upsert({
-      where: { id: "budget-venue" },
-      update: {},
-      create: {
-        id: "budget-venue",
-        weddingId: wedding.id,
-        celebrationId: celebration.id,
-        category: "venue",
-        label: "Venue package",
-        estimatedCents: 0,
-      },
-    }),
-    prisma.budgetLine.upsert({
-      where: { id: "budget-photography" },
-      update: {},
-      create: {
-        id: "budget-photography",
-        weddingId: wedding.id,
-        celebrationId: celebration.id,
-        category: "photography",
-        label: "Photography",
-        estimatedCents: 0,
-      },
+    // Earlier seeds added empty placeholder expenses; remove them unless they've been filled in.
+    prisma.budgetLine.deleteMany({
+      where: { id: { in: ["budget-venue", "budget-photography"] }, estimatedCents: 0, actualCents: null },
     }),
     prisma.task.upsert({
       where: { id: "task-book-photographer" },
