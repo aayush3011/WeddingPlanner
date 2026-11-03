@@ -30,7 +30,7 @@ Prisma migration against that database.
 
 ```env
 DATABASE_URL="postgresql://..."   # pooled connection (Neon host ending in -pooler)
-DIRECT_URL="postgresql://..."     # direct connection, used by prisma migrate during the build
+DIRECT_URL="postgresql://..."     # optional: direct connection for prisma migrate
 BASIC_AUTH_USERNAME="..."
 BASIC_AUTH_PASSWORD="..."
 ```
@@ -39,8 +39,9 @@ If `BASIC_AUTH_USERNAME` or `BASIC_AUTH_PASSWORD` is missing, password protectio
 That is convenient locally but should not be used for the shared deployment.
 
 `prisma migrate deploy` takes a Postgres advisory lock, which does not work through Neon's
-connection pooler, so `DIRECT_URL` must point at the direct host (the pooled host without
-`-pooler`). Without it, builds fail with `P1002 ... Timed out trying to acquire a postgres advisory lock`.
+connection pooler (builds fail with `P1002 ... Timed out trying to acquire a postgres advisory lock`).
+`prisma.config.ts` therefore sets `DIRECT_URL` to `DATABASE_URL` with `-pooler` removed from the host;
+set `DIRECT_URL` yourself only if the direct host differs.
 
 ## Later upgrade path
 
