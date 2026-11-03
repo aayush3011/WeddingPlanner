@@ -20,7 +20,7 @@ const guestTypeRank: Record<string, number> = {
 
 export default async function GuestsPage({ searchParams }: { searchParams: Promise<{ view?: string; q?: string; side?: string }> }) {
   const { view, q, side } = await searchParams;
-  const activeView = view === "guests" ? "guests" : "families";
+  const activeView = view === "guests" || view === "households" ? view : "families";
   const search = q?.trim() ?? "";
   const normalizedSearch = search.toLocaleLowerCase();
   const activeSide = side === "aayush" || side === "grace" ? side : "all";
@@ -64,6 +64,25 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
     const formattedSide = formatGuestSide(guest.side).toLocaleLowerCase();
     return matchesSearch && (activeSide === "all" || formattedSide === activeSide);
   });
+  // One save-the-date / invitation per household: each family plus each guest coming on their own.
+  const allMailingHouseholds = households
+    .filter((household) => household.guests.length > 0)
+    .map((household) => ({
+      id: household.id,
+      name: household.kind === "family" ? household.name : household.guests[0].firstName,
+      kind: household.kind === "family" ? "family" : "individual",
+      memberCount: household.guests.length,
+      sides: [...new Set(household.guests.map((guest) => formatGuestSide(guest.side)))],
+    }));
+  const mailingHouseholds = allMailingHouseholds.filter((household) => {
+    const matchesSearch = !normalizedSearch || household.name.toLocaleLowerCase().includes(normalizedSearch);
+    return matchesSearch && (activeSide === "all" || household.sides.some((formattedSide) => formattedSide.toLocaleLowerCase() === activeSide));
+  });
+  const householdCounts = {
+    total: allMailingHouseholds.length,
+    families: allMailingHouseholds.filter((household) => household.kind === "family").length,
+    individuals: allMailingHouseholds.filter((household) => household.kind === "individual").length,
+  };
   const statuses = allGuests.map((guest) => guest.invitations[0]?.rsvpStatus ?? "pending");
   const attending = statuses.filter((status) => status === "attending").length;
   const pending = statuses.filter((status) => status === "pending" || status === "tentative").length;
@@ -76,10 +95,10 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
     toddlers: allGuests.filter((guest) => guest.ageBand === "toddler").length,
   };
 
-  const pageHref = (nextView: "families" | "guests", nextSide: "all" | "aayush" | "grace" = "all", nextSearch = search) => {
+  const pageHref = (nextView: "families" | "guests" | "households", nextSide: "all" | "aayush" | "grace" = "all", nextSearch = search) => {
     const params = new URLSearchParams({ view: nextView });
     if (nextSearch) params.set("q", nextSearch);
-    if (nextView === "guests" && nextSide !== "all") params.set("side", nextSide);
+    if (nextView !== "families" && nextSide !== "all") params.set("side", nextSide);
     return `/guests?${params.toString()}`;
   };
 
@@ -118,7 +137,7 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <form action="/guests" className="flex flex-1 gap-2" method="get">
           <input name="view" type="hidden" value={activeView} />
-          {activeView === "guests" && activeSide !== "all" ? <input name="side" type="hidden" value={activeSide} /> : null}
+          {activeView !== "families" && activeSide !== "all" ? <input name="side" type="hidden" value={activeSide} /> : null}
           <input aria-label="Search guests and families" className={`${inputClass} bg-ivory`} defaultValue={search} name="q" placeholder="Search guests and families…" type="search" />
           <button className="rounded-xl bg-sage px-4 text-xs font-bold text-white">Search</button>
           {search ? <Link className="grid place-items-center rounded-xl border border-line bg-white px-3 text-xs font-semibold text-mist" href={pageHref(activeView, activeSide, "")}>Clear</Link> : null}
@@ -126,11 +145,12 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
         <div className="flex gap-2">
           <Link className={`rounded-xl px-4 py-3 text-xs font-semibold ${activeView === "families" ? "bg-ink text-white" : "bg-linen text-mist"}`} href={pageHref("families", "all")}>Families</Link>
           <Link className={`rounded-xl px-4 py-3 text-xs font-semibold ${activeView === "guests" ? "bg-ink text-white" : "bg-linen text-mist"}`} href={pageHref("guests", activeSide)}>Guests</Link>
+          <Link className={`rounded-xl px-4 py-3 text-xs font-semibold ${activeView === "households" ? "bg-ink text-white" : "bg-linen text-mist"}`} href={pageHref("households", activeSide)}>Households</Link>
         </div>
       </div>
-      {activeView === "guests" ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+      {activeView !== "families" ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
         <span className="mr-1 text-xs font-semibold text-mist">Filter by side</span>
-        {([ ["all", "All"], ["aayush", "Aayush"], ["grace", "Grace"] ] as const).map(([value, label]) => <Link className={`rounded-full px-4 py-2 text-xs font-semibold ${activeSide === value ? "bg-ink text-white" : "bg-linen text-mist hover:bg-sage-light"}`} href={pageHref("guests", value)} key={value}>{label}</Link>)}
+        {([ ["all", "All"], ["aayush", "Aayush"], ["grace", "Grace"] ] as const).map(([value, label]) => <Link className={`rounded-full px-4 py-2 text-xs font-semibold ${activeSide === value ? "bg-ink text-white" : "bg-linen text-mist hover:bg-sage-light"}`} href={pageHref(activeView, value)} key={value}>{label}</Link>)}
       </div> : null}
     </Card>
 
@@ -143,7 +163,15 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
         </Card>;
       })}
       {families.length === 0 ? <Card className="xl:col-span-2"><p className="py-8 text-center text-sm text-mist">No families or family members match your search.</p></Card> : null}
-    </div> : <Card>
+    </div> : activeView === "households" ? <>
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[["Households · cards to send", householdCounts.total], ["Families", householdCounts.families], ["Single guests", householdCounts.individuals]].map(([label, count]) => <Card key={label}><p className="text-xs text-mist">{label}</p><p className="stat-value">{count}</p></Card>)}
+      </section>
+      <Card>
+        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Household</th><th>Type</th><th>Guests</th><th>Side</th></tr></thead><tbody>{mailingHouseholds.map((household) => <tr className="border-b border-line last:border-0" key={household.id}><td className="py-4 font-semibold">{household.name}</td><td><Badge tone={household.kind === "family" ? "sage" : "neutral"}>{household.kind === "family" ? "Family" : "Single"}</Badge></td><td className="text-mist">{household.memberCount}</td><td className="text-mist">{household.sides.join(" · ")}</td></tr>)}{mailingHouseholds.length === 0 ? <tr><td className="py-10 text-center text-sm text-mist" colSpan={4}>No households match the current search and side filters.</td></tr> : null}</tbody></table></div>
+        {mailingHouseholds.length !== householdCounts.total ? <p className="mt-4 text-xs text-mist">Showing {mailingHouseholds.length} of {householdCounts.total} households.</p> : null}
+      </Card>
+    </> : <Card>
       <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="border-b border-line text-[.65rem] uppercase tracking-wider text-mist"><tr><th className="pb-3">Guest</th><th>Family</th><th>Side</th><th>Ceremony RSVP</th><th>Meal</th><th>Actions</th></tr></thead><tbody>{guests.map((guest) => <tr className="border-b border-line last:border-0" key={guest.id}><td className="py-4 font-semibold">{guest.firstName}</td><td className="text-mist">{guest.familyName ?? "—"}</td><td className="text-mist">{formatGuestSide(guest.side)}</td><td><Badge tone={guest.invitations[0]?.rsvpStatus === "attending" ? "sage" : guest.invitations[0]?.rsvpStatus === "declined" ? "danger" : "neutral"}>{guest.invitations[0]?.rsvpStatus ?? "Pending"}</Badge></td><td className="capitalize text-mist">{guest.invitations[0]?.mealChoice ?? "Not selected"}</td><td><div className="grid gap-2">{responseForm(guest)}<DeleteControl id={guest.id} kind="guest" name={guest.firstName} /></div></td></tr>)}{guests.length === 0 ? <tr><td className="py-10 text-center text-sm text-mist" colSpan={6}>No guests match the current search and side filters.</td></tr> : null}</tbody></table></div>
     </Card>}
   </AppShell>;
