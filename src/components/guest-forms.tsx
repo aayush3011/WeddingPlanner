@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { addFamily, addFamilyMember, addGuest, updateFamily } from "@/app/actions";
+import { addFamily, addFamilyMember, addGuest, updateFamily, updateGuest } from "@/app/actions";
 import { buttonClass, Field, inputClass } from "@/components/card";
 
 const sideOptions = <>
@@ -101,6 +101,21 @@ type EditableMember = {
   dietary: string | null;
   notes: string | null;
 };
+
+export function EditGuestForm({ guest, familyName }: { guest: EditableMember; familyName: string | null }) {
+  return <form action={updateGuest} className="grid gap-4">
+    <input name="guestId" type="hidden" value={guest.id} />
+    {familyName ? <p className="rounded-xl bg-linen px-4 py-3 text-sm text-mist">Member of <strong className="text-ink">{familyName}</strong>.</p> : null}
+    <Field label="Name"><input className={inputClass} defaultValue={guest.firstName} name="firstName" required /></Field>
+    <div className="grid grid-cols-2 gap-3">
+      <Field label="Side"><select className={inputClass} defaultValue={normalizedSide(guest.side)} name="side">{sideOptions}</select></Field>
+      <Field label="Guest type"><select className={inputClass} defaultValue={normalizedGuestType(guest.ageBand)} name="ageBand">{guestTypeOptions}</select></Field>
+    </div>
+    <Field label="Dietary or allergy notes"><input className={inputClass} defaultValue={guest.dietary ?? ""} name="dietary" /></Field>
+    <Field label="Notes"><textarea className={inputClass} defaultValue={guest.notes ?? ""} name="notes" rows={3} /></Field>
+    <button className={buttonClass}>Save guest</button>
+  </form>;
+}
 
 export function EditFamilyForm({ family }: { family: { id: string; name: string; guests: EditableMember[] } }) {
   return <form action={updateFamily} className="grid gap-5">

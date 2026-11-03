@@ -180,6 +180,39 @@ export async function updateFamily(formData: FormData) {
   refresh(["/", "/guests", "/seating"]);
 }
 
+export async function updateGuest(formData: FormData) {
+  const { wedding } = await getAmericanCelebration();
+  const guestId = requiredString(formData.get("guestId"), "Guest");
+  const firstName = requiredString(formData.get("firstName"), "Name");
+
+  await prisma.$transaction(async (tx) => {
+    const guest = await tx.guest.findFirst({
+      where: { id: guestId, household: { weddingId: wedding.id } },
+      select: { householdId: true, household: { select: { kind: true } } },
+    });
+
+    if (!guest) throw new Error("Guest not found");
+
+    await tx.guest.update({
+      where: { id: guestId },
+      data: {
+        firstName,
+        side: requiredString(formData.get("side"), "Side"),
+        ageBand: requiredString(formData.get("ageBand"), "Guest type"),
+        dietary: optionalString(formData.get("dietary")),
+        notes: optionalString(formData.get("notes")),
+      },
+    });
+
+    // A guest coming on their own is their household, so keep its name in step.
+    if (guest.household.kind !== "family") {
+      await tx.household.update({ where: { id: guest.householdId }, data: { name: firstName } });
+    }
+  });
+
+  refresh(["/", "/guests", "/seating"]);
+}
+
 export async function removeGuest(formData: FormData) {
   const guestId = requiredString(formData.get("guestId"), "Guest");
   await prisma.$transaction([
@@ -412,14 +445,14 @@ export async function seedDemoData() {
         data: [
           {
             eventId: ceremony.id,
-            startsAt: new Date("2027-10-02T21:00:00.000Z"),
+            startsAt: new Date("2027-09-19T21:00:00.000Z"),
             durationMinutes: 30,
             title: "Ceremony",
             owner: "Officiant",
           },
           {
             eventId: ceremony.id,
-            startsAt: new Date("2027-10-02T22:00:00.000Z"),
+            startsAt: new Date("2027-09-19T22:00:00.000Z"),
             durationMinutes: 60,
             title: "Family photos",
             owner: "Photographer",

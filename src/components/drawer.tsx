@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-export function DrawerClient({ label, title, children, secondary = false }: { label: string; title: string; children: React.ReactNode; secondary?: boolean }) {
+export function DrawerClient({ label, title, children, secondary = false, triggerClassName }: { label: string; title: string; children: React.ReactNode; secondary?: boolean; triggerClassName?: string }) {
   const [open, setOpen] = useState(false);
-  const triggerClass = secondary
+  const triggerClass = triggerClassName ?? (secondary
     ? "inline-flex items-center justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-sage-light"
-    : "inline-flex items-center justify-center rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sage";
+    : "inline-flex items-center justify-center rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sage");
 
   return <>
     <button className={triggerClass} onClick={() => setOpen(true)} type="button">{label}</button>
